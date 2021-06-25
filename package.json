@@ -1,4 +1,9 @@
 {
   "name": "solana-client-js",
-  "version": "0.0.1"
+  "version": "0.0.2",
+  "dependencies": {
+    "@solana/spl-token": "^0.1.6",
+    "@solana/web3.js": "^1.18.0",
+    "buffer-layout": "^1.2.1"
+  }
 }
