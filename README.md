@@ -1,3 +1,7 @@
 # solana-client-js
 
-Print 'Hello Solana-Client-JS!' in the console.
+Solana library
+
+## Thanks To
+
+[How to test npm package in local](<https://flaviocopes.com/npm-local-package/>)

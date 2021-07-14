@@ -1,6 +1,6 @@
 {
   "name": "solana-client-js",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "dependencies": {
     "@solana/spl-token": "^0.1.6",
     "@solana/web3.js": "^1.18.0",

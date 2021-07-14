@@ -1,4 +1,5 @@
+const Solana = require('./Solana');
 
 module.exports = {
-  Solana: require('./Solana')
+  Solana
 }
