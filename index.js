@@ -1,6 +1,5 @@
-// const Solana = require('@solana/web3.js');
 const { Solana } = require('./src');
 
-module.exports = {
+module.exports= {
   Solana
 }

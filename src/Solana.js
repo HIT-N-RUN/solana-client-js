@@ -1,75 +1,51 @@
 const { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } = require("@solana/spl-token");
-const { 
-  Connection, 
-  Keypair, 
-  PublicKey,
-  Transaction,
-  TransactionInstruction
-} = require('@solana/web3.js');
-const BufferLayout = require('buffer-layout');
+const { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } = require('@solana/web3.js');
 
-class LAYOUT {
-  static encodeTokenInstructionData(instruction) {
-    const LAYOUT = BufferLayout.union(BufferLayout.u8('instruction'));
-    LAYOUT.addVariant(
-      0,
-      BufferLayout.struct([
-        BufferLayout.u8('decimals'),
-        BufferLayout.blob(32, 'mintAuthority'),
-        BufferLayout.u8('freezeAuthorityOption'),
-        BufferLayout.blob(32, 'freezeAuthority'),
-      ]),
-      'initializeMint',
-    );
-    LAYOUT.addVariant(1, BufferLayout.struct([]), 'initializeAccount');
-    LAYOUT.addVariant(
-      7,
-      BufferLayout.struct([BufferLayout.nu64('amount')]),
-      'mintTo',
-    );
-    LAYOUT.addVariant(
-      8,
-      BufferLayout.struct([BufferLayout.nu64('amount')]),
-      'burn',
-    );
-    LAYOUT.addVariant(9, BufferLayout.struct([]), 'closeAccount');
-    LAYOUT.addVariant(
-      12,
-      BufferLayout.struct([BufferLayout.nu64('amount'), BufferLayout.u8('decimals')]),
-      'transferChecked',
-    );
+const { Constant, LAYOUT } = require('./config');
 
-    const instructionMaxSpan = Math.max(
-      ...Object.values(LAYOUT.registry).map((r) => r.span),
-    );
+class Wallet {
+  constructor(name, secretKeyArray) {
+    this.name = name;
 
-    let b = Buffer.alloc(instructionMaxSpan);
-    let span = LAYOUT.encode(instruction, b);
+    this.keyPair = Keypair.fromSecretKey(Buffer.from(secretKeyArray));
 
-    return b.slice(0, span);
+    this.publicKey = this.keyPair.publicKey;
+    this.secretKey = this.keyPair.secretKey;
+  }
+}
+
+class Destination {
+  constructor(name, publicKey) {
+    this.name = name;
+    this.publicKey = new PublicKey(publicKey);
   }
 }
 
 class Solana {
-  constructor() {
-    this.MAINNET_URL = 'https://solana-api.projectserum.com';
-    this.connection = new Connection(this.MAINNET_URL);
+  constructor(config = {}) {
+    const MAINNET_URL = config.MAINNET_URL ? config.MAINNET_URL : Constant.SERUM_PROJECT_URL;
+
+    this.connection = new Connection(MAINNET_URL);
+    this.wallets = {}
+    this.destinations = {}
+    this.mint = config.MINT ? new PublicKey(config.MINT) : new PublicKey(Constant.SGT.MINT_ADDRESS);
+    this.decimals = config.DECIMALS ? config.DECIMALS : Constant.SGT.DECIMALS;
   }
 
-  setMainNet(url) {
-    return this.MAINNET_URL = url;
+  changeMainNetURL(url) {
+    if (this.connection._rpcEndpoint === url) {
+      return;
+    } else {
+      this.connection = new Connection(url);
+    }
   }
 
-  reConnect() {
-    this.connection = new Connection(this.MAINNET_URL);
+  addWallet(name, secretKeyArray) {
+    this.wallets[name] = new Wallet(name, secretKeyArray);
   }
 
-  publicKeyFromString(string) {
-    return new PublicKey(string);
-  }
-
-  keyPairFromSecretKeyArray(secretKeyArray) {
-    return Keypair.fromSecretKey(Buffer.from(secretKeyArray));
+  addDestination(name, destination) {
+    this.destinations[name] = new Destination(name, destination);
   }
 
   async getAssociatedTokenAddress(publicKey, mint) {
@@ -79,41 +55,81 @@ class Solana {
     return associatedTokenAddress;
   }
 
-  getTransactionInstruction(keys, programId, data) {
-    const transferIx = new TransactionInstruction({ keys, programId, data });
+  async getTransferTokenInstruction({ walletName, destinationName, amount }) {
+    const owner = this.wallets[walletName].keyPair;
+    const destination = this.destinations[destinationName].publicKey;
 
-    return transferIx;
-  }
+    const mint = this.mint;
 
-  async transferToken(owner, destination, mint, amount, decimals) {
     const keys = [
       { pubkey: await this.getAssociatedTokenAddress(owner.publicKey, mint), isSigner: false, isWritable: true },
       { pubkey: mint, isSigner: false, isWritable: false },
-      { pubkey: await this.getAssociatedTokenAddress(destination.publicKey, mint), isSigner: false, isWritable: true },
-      { pubkey: owner.publicKey, isSigner: true, isWritable: false },
+      { pubkey: await this.getAssociatedTokenAddress(destination, mint), isSigner: false, isWritable: true },
+      { pubkey: owner.publicKey, isSigner: true, isWritable: false }
     ]
-    
     const programId = TOKEN_PROGRAM_ID;
-    const data = this.encodeTokenInstructionData({
-      transferChecked: { amount, decimals },
+    const data = LAYOUT.encodeTokenInstructionData({
+      transferChecked: { amount, decimals: this.decimals }
     });
+
+    const transferIx = new TransactionInstruction({ keys, programId, data });
+
+    return transferIx
+  }
+  
+  // async transferToken(walletName, destinationName, amount) {
+  //   const owner = this.wallets[walletName].keyPair;
+  //   const destination = this.destinations[destinationName].publicKey;
+
+  //   const mint = this.mint;
+
+  //   const keys = [
+  //     { pubkey: await this.getAssociatedTokenAddress(owner.publicKey, mint), isSigner: false, isWritable: true },
+  //     { pubkey: mint, isSigner: false, isWritable: false },
+  //     { pubkey: await this.getAssociatedTokenAddress(destination, mint), isSigner: false, isWritable: true },
+  //     { pubkey: owner.publicKey, isSigner: true, isWritable: false }
+  //   ]
+  //   const programId = TOKEN_PROGRAM_ID;
+  //   const data = LAYOUT.encodeTokenInstructionData({
+  //     transferChecked: { amount, decimals: this.decimals }
+  //   });
+
+  //   const transferIx = new TransactionInstruction({ keys, programId, data });
+  //   const transaction = new Transaction();
     
-    const transferIx = this.getTransactionInstruction(keys, programId, data);
+  //   transaction.add(transferIx);
+
+    // transaction.recentBlockhash = (await this.connection.getRecentBlockhash('max')).blockhash;
+    // transaction.setSigners(owner.publicKey);
+    // transaction.partialSign(owner);
+
+    // const rawTransaction = transaction.serialize();
+
+    // return await this.connection.sendRawTransaction(rawTransaction);
+  // }
+
+  async transferTokens(instructions, feeWallet) {
     const transaction = new Transaction();
-    
-    transaction.add(transferIx);
+
+    for (let i = 0; i < instructions.length; i++) {
+      const transferIx = await this.getTransferTokenInstruction(instructions[i]);
+
+      transaction.add(transferIx);
+    }
 
     transaction.recentBlockhash = (await this.connection.getRecentBlockhash('max')).blockhash;
-    transaction.setSigners(owner.publicKey);
-    transaction.partialSign(owner);
+
+    const owner = this.wallets[instructions[0].walletName].keyPair;
+    const owner2 = this.wallets[instructions[5].walletName].keyPair;
+
+    const feePayer = this.wallets[feeWallet].keyPair;
+    
+    transaction.setSigners(feePayer.publicKey);
+    transaction.partialSign(feePayer, owner, owner2);
 
     const rawTransaction = transaction.serialize();
 
     return await this.connection.sendRawTransaction(rawTransaction);
-  }
-
-  encodeTokenInstructionData(instruction) {
-    return LAYOUT.encodeTokenInstructionData(instruction);
   }
 }
 
