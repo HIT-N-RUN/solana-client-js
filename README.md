@@ -2,10 +2,18 @@
 
 Solana library for managing wallet and transfering tokens.
 
-## Getting Started
+## Installation
 
 ```bash
   npm install solana-client-js
+```
+
+## Initialize
+
+```javascript
+  const { Solana } = require('solana-client-js');
+
+  const conn = new Solana();
 ```
 
 ## APIs
@@ -13,22 +21,11 @@ Solana library for managing wallet and transfering tokens.
 ### Store wallets
 
 ``` javascript
-  const { Solana } = require('solana-client-js');
+  // Add wallet(name, secretKeyArray)
+  conn.addWallet('myWallet', [106,241,17,...,25,111,29,121,118]);
 
-  // Secret key of wallet.
-  const MY_WALLET_SECRET_KEY = [106,241,17,...,25,111,29,121,118];
-
-  // Public key of receiver.
-  const MY_RECEIVER_PUBLIC_KEY = "8z4Wq1gz1u...kNZcDS77KLq";
-
-  // Initialize object.
-  const conn = new Solana();
-
-  // Add wallet
-  conn.addWallet('myWallet', MY_WALLET_SECRET_KEY);
-
-  // Add destination (only public key)
-  conn.addDestination('myReceiver', MY_RECEIVER_PUBLIC_KEY);
+  // Add destination (name, publicKey)
+  conn.addDestination('myReceiver', "8z4Wq1gz1u...kNZcDS77KLq");
 
   console.log(conn.wallets['myWallet'], conn.destinations['myReceiver']);
 ```
@@ -36,10 +33,6 @@ Solana library for managing wallet and transfering tokens.
 ### Transfer tokens
 
 ``` javascript
-  const { Solana } = require('solana-client-js');
-
-  const conn = new Solana();
-
   /*
     ...
     store sender's wallet, payer's wallet and receiver's publicKey
@@ -47,12 +40,8 @@ Solana library for managing wallet and transfering tokens.
   */
 
   const transfers = [
-    { 
-      walletName: 'sender', destinationName: 'receiver', amount: 1
-    },
-    { 
-      walletName: 'sender', destinationName: 'receiver', amount: 2
-    }
+    {walletName: 'sender', destinationName: 'receiver', amount: 1},
+    {walletName: 'sender', destinationName: 'receiver', amount: 2}
   ]
 
   const res = await conn.transferTokens(transfers, 'payer');
