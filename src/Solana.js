@@ -76,37 +76,6 @@ class Solana {
 
     return transferIx
   }
-  
-  // async transferToken(walletName, destinationName, amount) {
-  //   const owner = this.wallets[walletName].keyPair;
-  //   const destination = this.destinations[destinationName].publicKey;
-
-  //   const mint = this.mint;
-
-  //   const keys = [
-  //     { pubkey: await this.getAssociatedTokenAddress(owner.publicKey, mint), isSigner: false, isWritable: true },
-  //     { pubkey: mint, isSigner: false, isWritable: false },
-  //     { pubkey: await this.getAssociatedTokenAddress(destination, mint), isSigner: false, isWritable: true },
-  //     { pubkey: owner.publicKey, isSigner: true, isWritable: false }
-  //   ]
-  //   const programId = TOKEN_PROGRAM_ID;
-  //   const data = LAYOUT.encodeTokenInstructionData({
-  //     transferChecked: { amount, decimals: this.decimals }
-  //   });
-
-  //   const transferIx = new TransactionInstruction({ keys, programId, data });
-  //   const transaction = new Transaction();
-    
-  //   transaction.add(transferIx);
-
-    // transaction.recentBlockhash = (await this.connection.getRecentBlockhash('max')).blockhash;
-    // transaction.setSigners(owner.publicKey);
-    // transaction.partialSign(owner);
-
-    // const rawTransaction = transaction.serialize();
-
-    // return await this.connection.sendRawTransaction(rawTransaction);
-  // }
 
   async transferTokens(instructions, feeWallet) {
     const transaction = new Transaction();
