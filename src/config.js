@@ -1,7 +1,7 @@
 const BufferLayout = require('buffer-layout');
 
 class Constant {
-  static SERUM_PROJECT_URL = 'https://api.mainnet-beta.solana.com';
+  static MAINNET_BETA_URL = 'https://api.mainnet-beta.solana.com';
   static SGT_MINT_ADDRESS = '4KAFf8ZpNCn1SWLZFo5tbeZsKpVemsobbVZdERWxRvd2';
 
   static SGT = {

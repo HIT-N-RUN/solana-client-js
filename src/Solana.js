@@ -1,5 +1,6 @@
 const { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } = require("@solana/spl-token");
 const { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } = require('@solana/web3.js');
+const { UInt } = require("buffer-layout");
 
 const { Constant, LAYOUT } = require('./config');
 
@@ -21,33 +22,72 @@ class Destination {
   }
 }
 
-class Solana {
-  constructor(config = {}) {
-    const MAINNET_URL = config.MAINNET_URL ? config.MAINNET_URL : Constant.SERUM_PROJECT_URL;
+class Core {
+  static getSetOfWallets(instructions) {
+    const walletNames = instructions.map(instruction => instruction.walletName);
 
-    this.connection = new Connection(MAINNET_URL);
+    const setOfWallets = [...new Set(walletNames)]
+   
+    return setOfWallets;
+  }
+}
+
+/**
+ * class for managing wallets and transfering tokens.
+ */
+
+class Solana {
+  /**
+    * Create a new Solana Object
+    * @param {string} url Mainnet url to connect
+    * @param {string} mint Token mint address to transfer
+    * @param {number} decimals Token decimals to transfer
+    */
+  constructor(url, mint, decimals) {
+    this.connection = new Connection(url ? url : Constant.MAINNET_BETA_URL);
     this.wallets = {}
     this.destinations = {}
-    this.mint = config.MINT ? new PublicKey(config.MINT) : new PublicKey(Constant.SGT.MINT_ADDRESS);
-    this.decimals = config.DECIMALS ? config.DECIMALS : Constant.SGT.DECIMALS;
+    this.mint = mint ? new PublicKey(mint) : new PublicKey(Constant.SGT.MINT_ADDRESS);
+    this.decimals = decimals ? decimals : Constant.SGT.DECIMALS;
   }
 
-  changeMainNetURL(url) {
-    if (this.connection._rpcEndpoint === url) {
+  /**
+    * Change mainnet url
+    * If new url is same with original url, it will not change anything.
+    * @param {string} newUrl Mainnet url to change
+    */
+  changeMainNetURL(newUrl) {
+    if (this.connection._rpcEndpoint === newUrl) {
       return;
-    } else {
-      this.connection = new Connection(url);
     }
+
+    this.connection = new Connection(newUrl);
   }
 
+  /**
+   * store wallet at this object.
+   * @param {string} name Wallet name to set. It will be used to get wallet's infoes and transfer tokens.
+   * @param {Uint8Array} secretKeyArray Wallet's secretKey Array.
+   */
   addWallet(name, secretKeyArray) {
     this.wallets[name] = new Wallet(name, secretKeyArray);
   }
 
+  /**
+   * store destination's publicKey at this object.
+   * @param {string} name destination name to set. It will be used to transfer tokens.
+   * @param {string} destination destination's publicKey
+   */
   addDestination(name, destination) {
     this.destinations[name] = new Destination(name, destination);
   }
 
+  /**
+   * get AssociatedTokenAddress from publicKey
+   * @param {string} publicKey publicKey to derive associated token address
+   * @param {string} mint mint address to derive 
+   * @returns {string} associated token Address
+   */
   async getAssociatedTokenAddress(publicKey, mint) {
     const associatedTokenAddress = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, publicKey
@@ -55,6 +95,10 @@ class Solana {
     return associatedTokenAddress;
   }
 
+  /**
+   * get TransferTokenInstruction
+   * @returns transferInstruction
+   */
   async getTransferTokenInstruction({ walletName, destinationName, amount }) {
     const owner = this.wallets[walletName].keyPair;
     const destination = this.destinations[destinationName].publicKey;
@@ -77,9 +121,21 @@ class Solana {
     return transferIx
   }
 
+  /**
+   * 
+   * @param {{walletName: string, destinationName: string, amount: UInt}[]} instructions
+   * walletName: sender's walletName
+   * 
+   * destinationName: receiver's Name
+   * 
+   * amount: amount of tokens to transfer
+   * @param {string} feeWallet wallet name for pay (should stored in this object)
+   * @returns transaction's Signature
+   */
   async transferTokens(instructions, feeWallet) {
     const transaction = new Transaction();
 
+    // Add all instructions in one transaction.
     for (let i = 0; i < instructions.length; i++) {
       const transferIx = await this.getTransferTokenInstruction(instructions[i]);
 
@@ -88,13 +144,16 @@ class Solana {
 
     transaction.recentBlockhash = (await this.connection.getRecentBlockhash('max')).blockhash;
 
-    const owner = this.wallets[instructions[0].walletName].keyPair;
-    const owner2 = this.wallets[instructions[5].walletName].keyPair;
+    // Get sender's unique keyPair sets.
+    const owners = Core.getSetOfWallets(instructions);
+    const ownersKeyPair = owners.map(owner => this.wallets[owner].keyPair);
 
+    // Get fee payer's wallet and set as fee payer
     const feePayer = this.wallets[feeWallet].keyPair;
-    
     transaction.setSigners(feePayer.publicKey);
-    transaction.partialSign(feePayer, owner, owner2);
+
+    // Partial sign
+    transaction.partialSign(feePayer, ...ownersKeyPair);
 
     const rawTransaction = transaction.serialize();
 
