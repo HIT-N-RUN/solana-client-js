@@ -10,7 +10,7 @@ Solana library for managing wallet and transfering tokens.
 
 ## APIs
 
-### Wallet manage
+### Store wallets
 
 ``` javascript
   const { Solana } = require('solana-client-js');
@@ -19,7 +19,7 @@ Solana library for managing wallet and transfering tokens.
   const MY_WALLET_SECRET_KEY = [106,241,17,...,25,111,29,121,118];
 
   // Public key of receiver.
-  const MY_RECEIVER_PUBLIC_KEY = "8z4Wq1gz1u9cgKLuk7qsCxv6QNFu5294kNZcDS77KLq";
+  const MY_RECEIVER_PUBLIC_KEY = "8z4Wq1gz1u...kNZcDS77KLq";
 
   // Initialize object.
   const conn = new Solana();
@@ -33,18 +33,42 @@ Solana library for managing wallet and transfering tokens.
   console.log(conn.wallets['myWallet'], conn.destinations['myReceiver']);
 ```
 
-### Get infoes (... preparing)
-
-### Get transaction histories (... preparing)
-
-### Transfer tokens (... preparing)
+### Transfer tokens
 
 ``` javascript
+  const { Solana } = require('solana-client-js');
 
+  const conn = new Solana();
+
+  /*
+    ...
+    store sender's wallet, payer's wallet and receiver's publicKey
+    ...
+  */
+
+  const transfers = [
+    { 
+      walletName: 'sender', destinationName: 'receiver', amount: 1
+    },
+    { 
+      walletName: 'sender', destinationName: 'receiver', amount: 2
+    }
+  ]
+
+  const res = await conn.transferTokens(transfers, 'payer');
+
+  console.log('signatures:', res);
 ```
 
-## Configurations (... preparing)
+## To do
 
-## Thanks To (... preparing)
+1. Configurations
+2. Get Infoes
+3. Get Transaction Histories
+4. Divide payer wallets and normal wallets. (like destination pubKey)
 
-[How to test npm package in local](<https://flaviocopes.com/npm-local-package/>)
+## Contributors
+
+[GGULBAE][link_to_GGULBAE]
+
+[link_to_GGULBAE]: https://github.com/GGULBAE "Go GGULBAE GIT"
