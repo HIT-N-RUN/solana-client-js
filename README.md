@@ -2,21 +2,29 @@
 
 Solana library for managing wallet and transfering tokens.
 
-## Installation
+## Install
 
 ```bash
   npm install solana-client-js
 ```
 
-## Initialize
+## APIs
+
+### Initialize
 
 ```javascript
   const { Solana } = require('solana-client-js');
 
   const conn = new Solana();
-```
 
-## APIs
+  // or 
+
+  const conn = new Solana(
+    'https://api.mainnet-beta.solana.com', // main net url
+    '4KAFf8ZpNCn1SWLZFo5tbeZsKpVemsobbVZdERWxRvd2', // token mint address
+    8 // token decimals
+  );
+```
 
 ### Store wallets
 
@@ -31,6 +39,8 @@ Solana library for managing wallet and transfering tokens.
 ```
 
 ### Transfer tokens
+
+  U should change token infoes to transfer other tokens. (Defalut SGT)
 
 ``` javascript
   /*
@@ -52,9 +62,9 @@ Solana library for managing wallet and transfering tokens.
 ## To do
 
 1. Configurations
-2. Get Infoes
-3. Get Transaction Histories
-4. Divide payer wallets and normal wallets. (like destination pubKey)
+2. Get wallet infoes (balances, transaction histories)
+3. Divide payer wallets and normal wallets. (like destination pubKey)
+4. Make token class
 
 ## Contributors
 
