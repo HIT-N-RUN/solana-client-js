@@ -1,72 +1,28 @@
 const { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } = require("@solana/spl-token");
 const { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } = require('@solana/web3.js');
 const { UInt } = require("buffer-layout");
-const { TokenListProvider } = require('@solana/spl-token-registry');
 
 const { Constant, LAYOUT, ErrorMessage } = require('./config');
 
-/**
- * class for wallet
- */
 class Wallet {
-  /**
-   * constructor
-   * @param {string} name wallet Name 
-   * @param {string} secretKey secretKey for restore wallet datas
-   */
-  constructor(name, secretKey) {
+  constructor(name, secretKeyArray) {
     this.name = name;
 
-    this.keyPair = Keypair.fromSecretKey(Buffer.from(secretKey));
+    this.keyPair = Keypair.fromSecretKey(Buffer.from(secretKeyArray));
 
     this.publicKey = this.keyPair.publicKey;
     this.secretKey = this.keyPair.secretKey;
-    
-    this.associatedAddress = "";
-  }
-
-  /**
-   * 
-   * @param {PublicKey} address address to set as token associated address 
-   */
-  setAssociatedAddress(address) {
-    this.associatedAddress = address;
   }
 }
 
 class Destination {
-  /**
-   * constructor
-   * @param {string} name wallet Name 
-   * @param {string} publicKey publicKey for store wallet data
-   */
   constructor(name, publicKey) {
     this.name = name;
     this.publicKey = new PublicKey(publicKey);
-    
-    this.associatedAddress = "";
-  }
-
-  /**
-   * 
-   * @param {PublicKey} address address to set as token associated address 
-   */
-  setAssociatedAddress(address) {
-    this.associatedAddress = address;
   }
 }
 
-/**
- * class for some calculating algorithms
- */
-
 class Core {
-
-  /**
-   * get unique set of instructions via walletName
-   * @param {{walletName: string}[]} instructions instructions having transfer datas. 
-   * @returns instructions
-   */
   static getSetOfWallets(instructions) {
     const walletNames = instructions.map(instruction => instruction.walletName);
 
@@ -80,45 +36,32 @@ class Core {
  * class for managing wallets and transfering tokens.
  */
 
- class Solana {
+class Solana {
   /**
     * Create a new Solana Object
     * @param {string} url Mainnet url to connect
+    * @param {string} mint Token mint address to transfer
+    * @param {number} decimals Token decimals to transfer
     */
-  constructor(url) {
+  constructor(url, mint, decimals) {
     this.connection = new Connection(url ? url : Constant.MAINNET_BETA_URL);
     this.wallets = {}
     this.destinations = {}
+    this.mint = mint ? new PublicKey(mint) : new PublicKey(Constant.SGT.MINT_ADDRESS);
+    this.decimals = decimals ? decimals : Constant.SGT.DECIMALS;
   }
 
   /**
-    * Set token to transfer
-    * @param {string} symbol Symbol name to set.
-    */
-  async setToken(symbol) {
-    const provider = new TokenListProvider();
-    const tokenList = (await provider.resolve()).getList();
-
-    const target = tokenList.filter(target => target.symbol === symbol);
-
-    if (target.length) {
-      this.token = target[0];
-    } else {
-      throw new Error(symbol + " : " + ErrorMessage.NO_TOKEN_SYMBOLE_NAME);
-    }
-  }
-
-  /**
-    * Set mainnet url
+    * Change mainnet url
     * If new url is same with original url, it will not change anything.
-    * @param {string} newURL Mainnet url to change
+    * @param {string} newUrl Mainnet url to change
     */
-  setMainNetURL(newURL) {
-    if (this.connection._rpcEndpoint === newURL) {
+  changeMainNetURL(newUrl) {
+    if (this.connection._rpcEndpoint === newUrl) {
       return;
     }
 
-    this.connection = new Connection(newURL);
+    this.connection = new Connection(newUrl);
   }
 
   /**
@@ -126,13 +69,8 @@ class Core {
    * @param {string} name Wallet name to set. It will be used to get wallet's infoes and transfer tokens.
    * @param {Uint8Array} secretKeyArray Wallet's secretKey Array.
    */
-  async addWallet(name, secretKey) {
-    const wallet = new Wallet(name, secretKey);
-    const associatedAddress = await this.getAssociatedTokenAddress(wallet.publicKey);
-
-    wallet.setAssociatedAddress(associatedAddress);
-
-    this.wallets[name] = wallet
+  addWallet(name, secretKeyArray) {
+    this.wallets[name] = new Wallet(name, secretKeyArray);
   }
 
   /**
@@ -140,44 +78,32 @@ class Core {
    * @param {string} name destination name to set. It will be used to transfer tokens.
    * @param {string} destination destination's publicKey
    */
-  async addDestination(name, publicKey) {
-    const destination = new Destination(name, publicKey);
-    const associatedAddress = await this.getAssociatedTokenAddress(destination.publicKey);
-
-    destination.setAssociatedAddress(associatedAddress);
-
-    this.destinations[name] = destination;
+  addDestination(name, destination) {
+    this.destinations[name] = new Destination(name, destination);
   }
-  /**
-   * get wallet balance. Token balance is default.
-   * @param {string} name wallet name to derive balance
-   * @param {boolean} associated false if u want to get SOL balance
-   * @returns 
-   */
-  async getWalletBalance(name, associated=true) {
-    const wallet = this.wallets[name]
-    var balance;
 
-    if (associated) {
-      const address = wallet.associatedAddress;
-      
-      balance = await this.connection.getTokenAccountBalance(address);
-    } else {
-      const address = wallet.publicKey;
-      
-      balance = await this.connection.getBalance(address);
+  async getWalletBalances(name) {
+    const target = this.wallets[name]
+
+    if (!target) {
+      return ErrorMessage.NO_WALLET_NAME;
     }
 
-    return balance;
-  }
+    console.log(target.publicKey.toString());
+    
+    const res = await this.connection.getBalance(target.publicKey);
 
+    console.log(res);
+
+    return res;
+  }
   /**
    * get AssociatedTokenAddress from publicKey
-   * @param {string} publicKey publicKey to derive associated token address 
+   * @param {string} publicKey publicKey to derive associated token address
+   * @param {string} mint mint address to derive 
    * @returns {string} associated token Address
    */
-  async getAssociatedTokenAddress(publicKey) {
-    const mint = new PublicKey(this.token.address);
+  async getAssociatedTokenAddress(publicKey, mint) {
     const associatedTokenAddress = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, publicKey
     )
@@ -190,21 +116,20 @@ class Core {
    * @returns transferInstruction
    */
   async getTransferTokenInstruction({ walletName, destinationName, amount }) {
-    const owner = this.wallets[walletName];
-    const destination = this.destinations[destinationName];
+    const owner = this.wallets[walletName].keyPair;
+    const destination = this.destinations[destinationName].publicKey;
 
-    const mint = new PublicKey(this.token.address);
-    const decimals = this.token.decimals;
+    const mint = this.mint;
 
     const keys = [
-      { pubkey: owner.associatedAddress, isSigner: false, isWritable: true },
+      { pubkey: await this.getAssociatedTokenAddress(owner.publicKey, mint), isSigner: false, isWritable: true },
       { pubkey: mint, isSigner: false, isWritable: false },
-      { pubkey: destination.associatedAddress, isSigner: false, isWritable: true },
-      { pubkey: owner.keyPair.publicKey, isSigner: true, isWritable: false }
+      { pubkey: await this.getAssociatedTokenAddress(destination, mint), isSigner: false, isWritable: true },
+      { pubkey: owner.publicKey, isSigner: true, isWritable: false }
     ]
     const programId = TOKEN_PROGRAM_ID;
     const data = LAYOUT.encodeTokenInstructionData({
-      transferChecked: { amount, decimals }
+      transferChecked: { amount, decimals: this.decimals }
     });
 
     const transferIx = new TransactionInstruction({ keys, programId, data });
@@ -237,7 +162,6 @@ class Core {
 
     // Get sender's unique keyPair sets.
     const owners = Core.getSetOfWallets(instructions);
-    
     const ownersKeyPair = owners.map(owner => this.wallets[owner].keyPair);
 
     // Get fee payer's wallet and set as fee payer
@@ -250,6 +174,21 @@ class Core {
     const rawTransaction = transaction.serialize();
 
     return await this.connection.sendRawTransaction(rawTransaction);
+  }
+
+
+
+  async getTokenDecimals(name) {
+    const mint = this.mint;
+    console.log(mint);
+    const target = this.wallets[name].publicKey;
+    const associatedTarget = await this.getAssociatedTokenAddress(target, this.mint);
+
+    console.log(associatedTarget);
+    // const res = await this.connection.getTokenAccountBalance(associatedTarget);
+    const res2 = await this.connection.getTokenSupply(mint);
+    // console.log(res);
+    console.log(res2);
   }
 }
 

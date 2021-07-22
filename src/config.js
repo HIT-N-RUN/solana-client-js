@@ -1,5 +1,10 @@
 const BufferLayout = require('buffer-layout');
 
+class ErrorMessage {
+  static NO_WALLET_NAME = "NO WALELT NAME"
+  static NO_TOKEN_SYMBOLE_NAME = "no symbol name in spl-token-registry library";
+}
+
 class Constant {
   static MAINNET_BETA_URL = 'https://api.mainnet-beta.solana.com';
   static SGT_MINT_ADDRESS = '4KAFf8ZpNCn1SWLZFo5tbeZsKpVemsobbVZdERWxRvd2';
@@ -40,5 +45,5 @@ class LAYOUT {
 
 
 module.exports = {
-  Constant, LAYOUT 
+  Constant, LAYOUT, ErrorMessage
 }

@@ -15,27 +15,35 @@ Solana library for managing wallet and transfering tokens.
 ```javascript
   const { Solana } = require('solana-client-js');
 
-  const conn = new Solana();
+  const SolanaClient = new Solana();
 
   // or 
 
-  const conn = new Solana(
+  const SolanaClient = new Solana(
     'https://api.mainnet-beta.solana.com', // main net url
-    '4KAFf8ZpNCn1SWLZFo5tbeZsKpVemsobbVZdERWxRvd2', // token mint address
-    8 // token decimals
   );
+
+  await solanaClient.setToken('SGT');
 ```
 
 ### Store wallets
 
 ``` javascript
   // Add wallet(name, secretKeyArray)
-  conn.addWallet('myWallet', [106,241,17,...,25,111,29,121,118]);
+  await solanaClient.addWallet('myWallet', [106,241,17,...,25,111,29,121,118]);
 
   // Add destination (name, publicKey)
-  conn.addDestination('myReceiver', "8z4Wq1gz1u...kNZcDS77KLq");
+  await solanaClient.addDestination('myReceiver', "8z4Wq1gz1u...kNZcDS77KLq");
+```
 
-  console.log(conn.wallets['myWallet'], conn.destinations['myReceiver']);
+### Getting balance of wallets
+
+```javascript
+  // Getting Token balance
+  const balance = await solanaClient.getWalletBalance('myWallet');
+
+    // Getting Solana balance
+  const balance = await solanaClient.getWalletBalance('myWallet', false);
 ```
 
 ### Transfer tokens
@@ -54,9 +62,9 @@ Solana library for managing wallet and transfering tokens.
     {walletName: 'sender', destinationName: 'receiver', amount: 2}
   ]
 
-  const res = await conn.transferTokens(transfers, 'payer');
+  const res = await solanaClient.transferTokens(transfers, 'payer');
 
-  console.log('signatures:', res);
+  console.log(`signatures: ${res}}\ncheck: https://explorer.solana.com/tx/${res}`);
 ```
 
 ## To do
