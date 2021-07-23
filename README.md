@@ -67,13 +67,6 @@ Solana library for managing wallet and transfering tokens.
   console.log(`signatures: ${res}}\ncheck: https://explorer.solana.com/tx/${res}`);
 ```
 
-## To do
-
-1. Configurations
-2. Get wallet infoes (balances, transaction histories)
-3. Divide payer wallets and normal wallets. (like destination pubKey)
-4. Make token class
-
 ## Contributors
 
 [GGULBAE][link_to_GGULBAE]

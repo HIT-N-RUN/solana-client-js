@@ -34,6 +34,9 @@ class Wallet {
   }
 }
 
+/**
+ * class for destination (public key)
+ */
 class Destination {
   /**
    * constructor
@@ -85,10 +88,11 @@ class Core {
     * Create a new Solana Object
     * @param {string} url Mainnet url to connect
     */
-  constructor(url) {
-    this.connection = new Connection(url ? url : Constant.MAINNET_BETA_URL);
+  constructor(url = Constant.MAINNET_BETA_URL) {
+    this.connection = new Connection(url);
     this.wallets = {}
     this.destinations = {}
+    this.payers = {}
   }
 
   /**
@@ -136,6 +140,20 @@ class Core {
   }
 
   /**
+   * store payer wallet at this object.
+   * @param {string} name Wallet name to set.
+   * @param {Uint8Array} secretKeyArray Wallet's secretKey Array.
+   */
+  async addPayer(name, secretKey) {
+    const wallet = new Wallet(name, secretKey);
+    const associatedAddress = await this.getAssociatedTokenAddress(wallet.publicKey);
+
+    wallet.setAssociatedAddress(associatedAddress);
+
+    this.payers[name] = wallet
+  }
+
+  /**
    * store destination's publicKey at this object.
    * @param {string} name destination name to set. It will be used to transfer tokens.
    * @param {string} destination destination's publicKey
@@ -148,6 +166,7 @@ class Core {
 
     this.destinations[name] = destination;
   }
+
   /**
    * get wallet balance. Token balance is default.
    * @param {string} name wallet name to derive balance
@@ -189,7 +208,7 @@ class Core {
    * get TransferTokenInstruction
    * @returns transferInstruction
    */
-  async getTransferTokenInstruction({ walletName, destinationName, amount }) {
+  getTransferTokenInstruction({ walletName, destinationName, amount }) {
     const owner = this.wallets[walletName];
     const destination = this.destinations[destinationName];
 
@@ -220,15 +239,15 @@ class Core {
    * destinationName: receiver's Name
    * 
    * amount: amount of tokens to transfer
-   * @param {string} feeWallet wallet name for pay (should stored in this object)
+   * @param {string} payer wallet name for pay (should stored in this object)
    * @returns transaction's Signature
    */
-  async transferTokens(instructions, feeWallet) {
+  async transferTokens(instructions, payerName) {
     const transaction = new Transaction();
 
     // Add all instructions in one transaction.
     for (let i = 0; i < instructions.length; i++) {
-      const transferIx = await this.getTransferTokenInstruction(instructions[i]);
+      const transferIx = this.getTransferTokenInstruction(instructions[i]);
 
       transaction.add(transferIx);
     }
@@ -241,7 +260,7 @@ class Core {
     const ownersKeyPair = owners.map(owner => this.wallets[owner].keyPair);
 
     // Get fee payer's wallet and set as fee payer
-    const feePayer = this.wallets[feeWallet].keyPair;
+    const feePayer = this.payers[payerName].keyPair;
     transaction.setSigners(feePayer.publicKey);
 
     // Partial sign
