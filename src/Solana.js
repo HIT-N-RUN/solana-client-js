@@ -1,9 +1,10 @@
 const { ASSOCIATED_TOKEN_PROGRAM_ID, Token, TOKEN_PROGRAM_ID } = require("@solana/spl-token");
 const { Connection, Keypair, PublicKey, Transaction, TransactionInstruction } = require('@solana/web3.js');
-const { UInt } = require("buffer-layout");
+const { UInt, union, u8, struct, blob, nu64 } = require("buffer-layout");
 const { TokenListProvider } = require('@solana/spl-token-registry');
+// const BufferLayout = require('buffer-layout');
 
-const { Constant, LAYOUT, ErrorMessage } = require('./config');
+const { Constant, ErrorMessage } = require('./config');
 
 /**
  * class for wallet
@@ -60,6 +61,36 @@ class Destination {
 }
 
 /**
+ * class for instruction layout
+ */
+class LAYOUT {
+  static encodeTokenInstructionData(instruction) {
+    const LAYOUT = union(u8('instruction'));
+
+    LAYOUT.addVariant(0, 
+      struct([
+        u8('decimals'),
+        blob(32, 'mintAuthority'),
+        u8('freezeAuthorityOption'),
+        blob(32, 'freezeAuthority'),
+      ]), 'initializeMint',
+    );
+    LAYOUT.addVariant(1, struct([]), 'initializeAccount');
+    LAYOUT.addVariant(7, struct([nu64('amount')]), 'mintTo');
+    LAYOUT.addVariant(8, struct([nu64('amount')]), 'burn');
+    LAYOUT.addVariant(9, struct([]), 'closeAccount');
+    LAYOUT.addVariant(12, struct([nu64('amount'), u8('decimals')]), 'transferChecked');
+
+    const instructionMaxSpan = Math.max(...Object.values(LAYOUT.registry).map((r) => r.span));
+
+    let b = Buffer.alloc(instructionMaxSpan);
+    let span = LAYOUT.encode(instruction, b);
+
+    return b.slice(0, span);
+  }
+}
+
+/**
  * class for some calculating algorithms
  */
 
@@ -83,12 +114,14 @@ class Core {
  * class for managing wallets and transfering tokens.
  */
 
+
+
  class Solana {
   /**
     * Create a new Solana Object
     * @param {string} url Mainnet url to connect
     */
-  constructor(url = Constant.MAINNET_BETA_URL) {
+  constructor(url = Constant.URL.MAINNET_BETA) {
     this.connection = new Connection(url);
     this.wallets = {}
     this.destinations = {}
