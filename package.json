@@ -1,6 +1,6 @@
 {
   "name": "solana-client-js",
-  "version": "0.0.10",
+  "version": "0.1.0",
   "description": "Solana library for managing wallet and transfering tokens",
   "keywords": ["solana", "solana client", "wallet", "transfer", "transfer tokens"],
   "bugs": {
