@@ -1,6 +1,16 @@
 {
   "name": "solana-client-js",
-  "version": "0.0.8",
+  "version": "0.0.9",
+  "description": "Solana library for managing wallet and transfering tokens",
+  "keywords": ["solana", "solana client", "wallet", "transfer", "transfer tokens"],
+  "bugs": {
+    "email": "hyeon5727@gmail.com"
+  },
+  "author": "Hyeonbae Lee <hyeon5727@gmail.com> (https://github.com/GGULBAE)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sanggatalk/solana-client-js.git"
+  },
   "dependencies": {
     "@solana/spl-token": "^0.1.6",
     "@solana/spl-token-registry": "^0.2.203",
