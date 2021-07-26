@@ -18,4 +18,4 @@ jobs:
 
         # NPM PUBLISH TOKEN
         env:
-          NODE_AUTH_TOKEN: ${{ NPM_PUBLISH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
