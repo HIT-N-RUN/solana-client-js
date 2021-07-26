@@ -1,6 +1,10 @@
 # solana-client-js
 
-Solana library for managing wallet and transfering tokens.
+![npm](https://img.shields.io/npm/v/solana-client-js)
+![commit activities](https://img.shields.io/github/commit-activity/y/sanggatalk/solana-client-js)
+![npm](https://img.shields.io/npm/dy/solana-client-js)
+
+Solana library for managing wallet and transfering tokens efficiently.
 
 ## Install
 
@@ -66,9 +70,3 @@ Solana library for managing wallet and transfering tokens.
 
   console.log(`signatures: ${res}}\ncheck: https://explorer.solana.com/tx/${res}`);
 ```
-
-## Contributors
-
-[GGULBAE][link_to_GGULBAE]
-
-[link_to_GGULBAE]: https://github.com/GGULBAE "Go GGULBAE GIT"
