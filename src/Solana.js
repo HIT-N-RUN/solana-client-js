@@ -18,26 +18,8 @@ const { Core, LAYOUT } = require('./Core');
     */
   constructor(url = Constant.URL.MAINNET_BETA) {
     this.connection = new Connection(url);
-    this.wallets = {}
-    this.destinations = {}
-    this.payers = {}
-  }
-
-  /**
-    * Set token to transfer
-    * @param {string} symbol Symbol name to set.
-    */
-  async setToken(symbol) {
-    const provider = new TokenListProvider();
-    const tokenList = (await provider.resolve()).getList();
-    
-    const target = tokenList.filter(target => target.symbol === symbol);
-
-    if (target.length) {
-      this.token = target[0];
-    } else {
-      throw new Error(symbol + " : " + ErrorMessage.NO_TOKEN_SYMBOLE_NAME);
-    }
+    this.payers = {};
+    this.token = undefined;
   }
 
   /**
@@ -51,20 +33,6 @@ const { Core, LAYOUT } = require('./Core');
     }
 
     this.connection = new Connection(newURL);
-  }
-
-  /**
-   * store wallet at this object.
-   * @param {string} name Wallet name to set. It will be used to get wallet's infoes and transfer tokens.
-   * @param {Uint8Array} secretKeyArray Wallet's secretKey Array.
-   */
-  async addWallet(name, secretKey) {
-    const wallet = new Wallet(name, secretKey);
-    const associatedAddress = await this.getAssociatedTokenAddress(wallet.publicKey);
-
-    wallet.setAssociatedAddress(associatedAddress);
-
-    this.wallets[name] = wallet
   }
 
   /**
@@ -82,86 +50,64 @@ const { Core, LAYOUT } = require('./Core');
   }
 
   /**
-   * store destination's publicKey at this object.
-   * @param {string} name destination name to set. It will be used to transfer tokens.
-   * @param {string} destination destination's publicKey
+   * get wallet balance.
+   * @param {string} publicKey publicKey to derive balance
+   * @returns {UInt} balance
    */
-  async addDestination(name, publicKey) {
-    const destination = new Destination(name, publicKey);
-    const associatedAddress = await this.getAssociatedTokenAddress(destination.publicKey);
+  async getWalletBalance(address) {
+    const publicKey = new PublicKey(address);
+    const balance = await this.connection.getTokenAccountBalance(publicKey);
 
-    destination.setAssociatedAddress(associatedAddress);
-
-    this.destinations[name] = destination;
-  }
-
-  /**
-   * get wallet balance. Token balance is default.
-   * @param {string} name wallet name to derive balance
-   * @param {boolean} associated false if u want to get SOL balance
-   * @returns 
-   */
-  async getWalletBalance(name, associated=true) {
-    const wallet = this.wallets[name]
-    var balance;
-
-    if (associated) {
-      const address = wallet.associatedAddress;
-      
-      balance = await this.connection.getTokenAccountBalance(address);
-    } else {
-      const address = wallet.publicKey;
-      
-      balance = await this.connection.getBalance(address);
-    }
-
-    return balance;
+    return balance.value.uiAmount;
   }
 
   /**
    * get AssociatedTokenAddress from publicKey
-   * @param {string} publicKey publicKey to derive associated token address 
+   * @param {string} address address to derive associated token address 
+   * @param {string} tokenAddress associated token address
    * @returns {string} associated token Address
    */
-  async getAssociatedTokenAddress(publicKey) {
-    const mint = new PublicKey(this.token.address);
+  async getAssociatedTokenAddress(address, tokenAddress) {
+    const publicKey = new PublicKey(address);
+    const mint = new PublicKey(tokenAddress);
+
     const associatedTokenAddress = await Token.getAssociatedTokenAddress(
       ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, mint, publicKey
     )
     
-    return associatedTokenAddress;
+    return associatedTokenAddress.toString();
   }
 
   /**
    * get TransferTokenInstruction
    * @returns transferInstruction
    */
-  getTransferTokenInstruction({ walletName, destinationName, amount }) {
-    const owner = this.wallets[walletName];
-    const destination = this.destinations[destinationName];
+  // getTransferTokenInstruction({ walletName, destinationName, amount }) {
+  //   const sender = this.wallets[walletName];
+  //   const destination = this.destinations[destinationName];
 
-    const mint = new PublicKey(this.token.address);
-    const decimals = this.token.decimals;
+  //   const mint = new PublicKey(this.token.address);
+  //   const decimals = this.token.decimals;
 
-    const keys = [
-      { pubkey: owner.associatedAddress, isSigner: false, isWritable: true },
-      { pubkey: mint, isSigner: false, isWritable: false },
-      { pubkey: destination.associatedAddress, isSigner: false, isWritable: true },
-      { pubkey: owner.keyPair.publicKey, isSigner: true, isWritable: false }
-    ]
-    const programId = TOKEN_PROGRAM_ID;
-    const data = LAYOUT.encodeTokenInstructionData({
-      transferChecked: { amount, decimals }
-    });
+  //   const keys = [
+  //     { pubkey: sender.associatedAddress, isSigner: false, isWritable: true },
+  //     { pubkey: mint, isSigner: false, isWritable: false },
+  //     { pubkey: destination.associatedAddress, isSigner: false, isWritable: true },
+  //     { pubkey: sender.keyPair.publicKey, isSigner: true, isWritable: false }
+  //   ]
+  //   const programId = TOKEN_PROGRAM_ID;
+  //   const data = LAYOUT.encodeTokenInstructionData({
+  //     transferChecked: { amount, decimals }
+  //   });
 
-    const transferIx = new TransactionInstruction({ keys, programId, data });
+  //   const transferIx = new TransactionInstruction({ keys, programId, data });
 
-    return transferIx
-  }
+  //   return transferIx
+  // }
 
   /**
    * 
-   * @param {{walletName: string, destinationName: string, amount: UInt}[]} instructions
+   * @param {{sender: String, destination: String, amount: UInt, mint: String}[]} instructions
    * walletName: sender's walletName
    * 
    * destinationName: receiver's Name
@@ -170,34 +116,34 @@ const { Core, LAYOUT } = require('./Core');
    * @param {string} payer wallet name for pay (should stored in this object)
    * @returns transaction's Signature
    */
-  async transferTokens(instructions, payerName) {
-    const transaction = new Transaction();
+  // async transferTokens(instructions, payerName) {
+  //   const transaction = new Transaction();
 
-    // Add all instructions in one transaction.
-    for (let i = 0; i < instructions.length; i++) {
-      const transferIx = this.getTransferTokenInstruction(instructions[i]);
+  //   // Add all instructions in one transaction.
+  //   for (let i = 0; i < instructions.length; i++) {
+  //     const transferIx = this.getTransferTokenInstruction(instructions[i]);
 
-      transaction.add(transferIx);
-    }
+  //     transaction.add(transferIx);
+  //   }
 
-    transaction.recentBlockhash = (await this.connection.getRecentBlockhash('max')).blockhash;
+  //   transaction.recentBlockhash = (await this.connection.getRecentBlockhash('max')).blockhash;
 
-    // Get sender's unique keyPair sets.
-    const owners = Core.getSetOfWallets(instructions);
+  //   // Get sender's unique keyPair sets.
+  //   const owners = Core.getSetOfWallets(instructions);
     
-    const ownersKeyPair = owners.map(owner => this.wallets[owner].keyPair);
+  //   const ownersKeyPair = owners.map(owner => this.wallets[owner].keyPair);
 
-    // Get fee payer's wallet and set as fee payer
-    const feePayer = this.payers[payerName].keyPair;
-    transaction.setSigners(feePayer.publicKey);
+  //   // Get fee payer's wallet and set as fee payer
+  //   const feePayer = this.payers[payerName].keyPair;
+  //   transaction.setSigners(feePayer.publicKey);
 
-    // Partial sign
-    transaction.partialSign(feePayer, ...ownersKeyPair);
+  //   // Partial sign
+  //   transaction.partialSign(feePayer, ...ownersKeyPair);
 
-    const rawTransaction = transaction.serialize();
+  //   const rawTransaction = transaction.serialize();
 
-    return await this.connection.sendRawTransaction(rawTransaction);
-  }
+  //   return await this.connection.sendRawTransaction(rawTransaction);
+  // }
 }
 
 module.exports = Solana;
